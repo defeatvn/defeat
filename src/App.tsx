@@ -24,7 +24,9 @@ const REDUCED_TIMELINE: Array<[IntroPhase, number]> = [
   ['interfaceReveal', 220],
   ['complete', 480],
 ]
-function makeLogoVariants(reduced: boolean): Variants {
+function makeLogoVariants(lite: boolean, reduced: boolean): Variants {
+  const BIG = 1.5
+  const CENTER_Y = 64
   if (reduced) {
     const glow =
       'blur(0px) brightness(1) drop-shadow(0 0 14px rgba(242,33,53,0.25)) drop-shadow(0 0 34px rgba(242,33,53,0.1))'
@@ -39,8 +41,16 @@ function makeLogoVariants(reduced: boolean): Variants {
       complete: { opacity: 1, scale: 1, y: 0, filter: glow, transition: { duration: 0.2 } },
     }
   }
-  const BIG = 1.5
-  const CENTER_Y = 64
+  if (lite) {
+    return {
+      boot: { opacity: 0, scale: BIG * 1.05, y: CENTER_Y, transition: { duration: 0.3, ease: EASE } },
+      logoReveal: { opacity: 1, scale: BIG, y: CENTER_Y, transition: { duration: 0.55, ease: EASE } },
+      logoImpact: { opacity: 1, scale: BIG * 1.03, y: CENTER_Y, transition: { duration: 0.16, ease: 'easeOut' } },
+      logoSettle: { opacity: 1, scale: BIG, y: CENTER_Y, transition: { duration: 0.22, ease: EASE } },
+      interfaceReveal: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.65, ease: EASE } },
+      complete: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.65, ease: EASE } },
+    }
+  }
   return {
     boot: {
       opacity: 0,
@@ -122,6 +132,12 @@ export default function App() {
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
+  const [lite] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(max-width: 820px)').matches ||
+        window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+  )
   const isScrollingRef = useRef(false)
   const touchStartRef = useRef(0)
 
@@ -129,7 +145,7 @@ export default function App() {
   const ui = phase === 'interfaceReveal' || phase === 'complete'
   const glareSwept = phase !== 'boot' && phase !== 'logoReveal'
 
-  const logoVariants = makeLogoVariants(reducedMotion)
+  const logoVariants = makeLogoVariants(lite, reducedMotion)
   const glowVariants = makeGlowVariants(reducedMotion)
   useEffect(() => {
     const schedule = reducedMotion ? REDUCED_TIMELINE : TIMELINE
@@ -259,7 +275,7 @@ export default function App() {
             />
           )}
 
-          <Tilt tiltEnable={introDone && activeSection === 0} className="relative">
+          <Tilt tiltEnable={introDone && activeSection === 0 && !lite} className="relative">
             <motion.div
               initial={{
                 scale: 0.97,
@@ -287,7 +303,8 @@ export default function App() {
                   }
               }
               transition={{ duration: reducedMotion ? 0.2 : 0.55, ease: EASE }}
-              className="relative w-[92vw] max-w-[640px] flex flex-col items-center justify-center px-8 py-10 md:px-16 md:py-14 rounded-3xl backdrop-blur-2xl border"
+              className={`relative w-[92vw] max-w-[640px] flex flex-col items-center justify-center px-8 py-10 md:px-16 md:py-14 rounded-3xl border ${lite ? 'backdrop-blur-md' : 'backdrop-blur-2xl'
+                }`}
             >
               <motion.div
                 variants={logoVariants}
@@ -299,8 +316,13 @@ export default function App() {
                   src="/defeat.png"
                   alt="DEFEAT Logo"
                   className="w-40 h-40 md:w-56 md:h-56 object-contain"
+                  style={
+                    lite
+                      ? { filter: 'drop-shadow(0 0 26px rgba(242,33,53,0.42))' }
+                      : undefined
+                  }
                 />
-                {!reducedMotion && (
+                {!reducedMotion && !lite && (
                   <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0"
@@ -315,7 +337,6 @@ export default function App() {
                       maskPosition: 'center',
                     }}
                   >
-                    {/* Warm ambient wash that flares with the glint. */}
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={glareSwept ? { opacity: [0, 0.35, 0] } : { opacity: 0 }}
@@ -327,7 +348,6 @@ export default function App() {
                         mixBlendMode: 'screen',
                       }}
                     />
-                    {/* Sharp light band. */}
                     <motion.div
                       initial={{ x: '-160%', opacity: 0 }}
                       animate={
@@ -348,11 +368,11 @@ export default function App() {
 
               <div className="text-center flex flex-col items-center">
                 <motion.h1
-                  initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                  initial={{ opacity: 0, y: 12, ...(lite ? {} : { filter: 'blur(4px)' }) }}
                   animate={
                     ui
-                      ? { opacity: 1, y: 0, filter: 'blur(0px)' }
-                      : { opacity: 0, y: 12, filter: 'blur(4px)' }
+                      ? { opacity: 1, y: 0, ...(lite ? {} : { filter: 'blur(0px)' }) }
+                      : { opacity: 0, y: 12, ...(lite ? {} : { filter: 'blur(4px)' }) }
                   }
                   transition={{
                     duration: reducedMotion ? 0.2 : 0.45,
@@ -366,12 +386,8 @@ export default function App() {
                 </motion.h1>
 
                 <motion.p
-                  initial={{ opacity: 0, y: 6, letterSpacing: '0.5em' }}
-                  animate={
-                    ui
-                      ? { opacity: 1, y: 0, letterSpacing: '0.35em' }
-                      : { opacity: 0, y: 6, letterSpacing: '0.5em' }
-                  }
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={ui ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
                   transition={{
                     duration: reducedMotion ? 0.2 : 0.4,
                     delay: reducedMotion ? 0.1 : 0.35,
